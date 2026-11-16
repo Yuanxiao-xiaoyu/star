@@ -15,8 +15,8 @@ jobs:
       - name: Extract ZIP
         run: |
           unzip -q storyatlas-0.1.0.zip -d extracted_app
-          echo "Unzipped contents:"
-          ls -la extracted_app
+          echo "==== 解压后的文件结构 ===="
+          ls -R extracted_app
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -24,23 +24,23 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install dependencies
+      - name: Install dependencies and Build APK
         run: |
+          # 进入解压目录，遍历所有文件夹，寻找 pubspec.yaml
           cd extracted_app
-          # 寻找包含 pubspec.yaml 的目录
-          FLUTTER_DIR=$(find . -name pubspec.yaml -exec dirname {} \;)
-          cd $FLUTTER_DIR
-          flutter pub get
-
-      - name: Build APK
-        run: |
-          cd extracted_app
-          FLUTTER_DIR=$(find . -name pubspec.yaml -exec dirname {} \;)
-          cd $FLUTTER_DIR
-          flutter build apk --release
+          for dir in */; do
+            if [ -f "${dir}pubspec.yaml" ]; then
+              echo "找到项目根目录: $dir"
+              cd "$dir"
+              flutter pub get
+              flutter build apk --release
+              break
+            fi
+          done
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
+          # 使用通配符递归查找 APK
           path: extracted_app/**/build/app/outputs/flutter-apk/app-release.apk
