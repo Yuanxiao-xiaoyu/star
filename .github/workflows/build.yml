@@ -1,49 +1,11 @@
-name: Build Flutter APK
+# 1) 解压
+unzip storyatlas-0.1.0.zip
+cd storyatlas
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Extract ZIP
-        run: |
-          unzip -q storyatlas-0.1.0.zip -d extracted_app
-          # 去壳：把 storyatlas 里面的东西全移到 extracted_app 根目录
-          mv extracted_app/storyatlas/* extracted_app/
-          mv extracted_app/storyatlas/.* extracted_app/ 2>/dev/null || true
-          rm -rf extracted_app/storyatlas
-          echo "==== 目录结构 ===="
-          ls -la extracted_app
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Force create Android platform
-        working-directory: extracted_app
-        run: |
-          # 强行生成缺失的 android 文件夹
-          flutter create --platforms=android .
-
-      - name: Install dependencies
-        working-directory: extracted_app
-        run: flutter pub get
-
-      - name: Build APK
-        working-directory: extracted_app
-        run: flutter build apk --release
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: extracted_app/build/app/outputs/flutter-apk/app-release.apk
+# 2) 推到你自己的仓库（先在 github.com 新建空仓库，别勾 README）
+git init
+git add -A
+git commit -m "StoryAtlas"
+git branch -M main
+git remote add origin https://github.com/你的用户名/storyatlas.git
+git push -u origin main
