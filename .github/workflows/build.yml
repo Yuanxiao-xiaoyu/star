@@ -8,26 +8,62 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - name: 解压源码
+        run: |
+          set -e
+          ZIP=$(find . -maxdepth 3 -type f -name "*.zip" | head -n 1)
+          if [ -z "$ZIP" ]; then echo "!!! 仓库里没有找到 zip"; ls -la; exit 1; fi
+          echo "解压: $ZIP"
+          unzip -q -o "$ZIP"
+          ls -la
+
+      - name: 定位项目根目录
+        run: |
+          if [ -f pubspec.yaml ]; then
+            echo "PROJECT_DIR=." >> "$GITHUB_ENV"
+          elif [ -f storyatlas/pubspec.yaml ]; then
+            echo "PROJECT_DIR=storyatlas" >> "$GITHUB_ENV"
+          else
+            echo "!!! 解压后仍找不到 pubspec.yaml"
+            find . -maxdepth 3 -name pubspec.yaml
+            exit 1
+          fi
+          echo "项目目录 = $PROJECT_DIR"
+
       - uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: '17'
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-      - run: flutter pub get
+
+      - name: 检查文件完整性
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          flutter --version
+          ls -la
+          test -d packages/storyatlas_core || { echo "!!! 缺少 packages/storyatlas_core"; exit 1; }
+          test -d lib || { echo "!!! 缺少 lib 目录"; exit 1; }
+          flutter pub get
+
       - name: 生成 Android 工程
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           flutter create --org app.storyatlas --project-name storyatlas --platforms android /tmp/scaffold
           cp -r /tmp/scaffold/android .
           cp /tmp/scaffold/.metadata . || true
           rm -rf android/.gradle android/local.properties
-          sed -i '/ndkVersion/d' android/app/build.gradle.kts || true
-      - run: flutter build apk --release --no-tree-shake-icons
-      - run: cp build/app/outputs/flutter-apk/app-release.apk storyatlas.apk
+
+      - name: 构建 APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter build apk --release
+
       - uses: actions/upload-artifact@v4
         with:
           name: storyatlas-apk
-          path: storyatlas.apk
+          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
