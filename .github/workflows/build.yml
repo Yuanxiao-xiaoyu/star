@@ -13,7 +13,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extract ZIP
-        run: unzip -q storyatlas-0.1.0.zip -d extracted_app
+        run: |
+          unzip -q storyatlas-0.1.0.zip -d extracted_app
+          echo "Unzipped contents:"
+          ls -la extracted_app
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -22,15 +25,22 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        working-directory: extracted_app
-        run: flutter pub get
+        run: |
+          cd extracted_app
+          # 寻找包含 pubspec.yaml 的目录
+          FLUTTER_DIR=$(find . -name pubspec.yaml -exec dirname {} \;)
+          cd $FLUTTER_DIR
+          flutter pub get
 
       - name: Build APK
-        working-directory: extracted_app
-        run: flutter build apk --release
+        run: |
+          cd extracted_app
+          FLUTTER_DIR=$(find . -name pubspec.yaml -exec dirname {} \;)
+          cd $FLUTTER_DIR
+          flutter build apk --release
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: extracted_app/build/app/outputs/flutter-apk/app-release.apk
+          path: extracted_app/**/build/app/outputs/flutter-apk/app-release.apk
